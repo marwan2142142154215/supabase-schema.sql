@@ -3,9 +3,13 @@ import { format } from 'date-fns'
 import { id } from 'date-fns/locale'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
-import { Camera, LogOut, Clock, AlertTriangle, CheckCircle } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { Camera, LogOut, Clock, AlertTriangle, CheckCircle, LogIn, MessageSquare } from 'lucide-react'
+import LoginModal from '../components/LoginModal'
 
 export default function Home() {
+  const { user, canAccess } = useAuth()
+  const [loginOpen, setLoginOpen] = useState(false)
   const [time, setTime] = useState(new Date())
   const [stats, setStats] = useState({ outside: 0, attended: 0, late: 0, totalBreaks: 0 })
   const [roleStats, setRoleStats] = useState<any[]>([])
@@ -62,6 +66,16 @@ export default function Home() {
         </p>
       </div>
 
+      {!user && (
+        <div className="bg-card border border-custom rounded-2xl p-8 text-center">
+          <p className="text-secondary mb-4">Login untuk mengakses semua fitur</p>
+          <button onClick={() => setLoginOpen(true)}
+            className="inline-flex items-center gap-2 bg-accent-indigo hover:bg-accent-indigo/80 text-white rounded-xl px-8 py-3 font-semibold transition-all mx-auto">
+            <LogIn size={20} /> Login Sekarang
+          </button>
+        </div>
+      )}
+
       {regulations && (
         <div className="bg-accent-gold/10 border border-accent-gold/20 rounded-2xl p-4 text-sm text-accent-gold">
           📋 {regulations}
@@ -98,6 +112,15 @@ export default function Home() {
           <LogOut size={22} /> Izin Keluar
         </button>
       </div>
+
+      {user && canAccess('access_chat') && (
+        <button onClick={() => navigate('/chat-nanastoto')}
+          className="w-full flex items-center justify-center gap-2 bg-accent-indigo/10 hover:bg-accent-indigo/20 border border-accent-indigo/30 text-accent-indigo rounded-2xl py-4 font-semibold transition-all">
+          <MessageSquare size={22} /> Buka Chat
+        </button>
+      )}
+
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   )
 }
