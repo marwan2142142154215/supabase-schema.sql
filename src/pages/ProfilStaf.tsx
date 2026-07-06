@@ -12,7 +12,7 @@ export default function ProfilStaf() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user || user.role === 'admin') { setLoading(false); return }
+    if (!user || user.roleName === 'LEADER') { setLoading(false); return }
     const fetchProfile = async () => {
       const { data: s } = await supabase.from('staff').select('*, roles(*)').eq('id', user.staffId).single()
       if (s) setStaff(s)
@@ -27,7 +27,7 @@ export default function ProfilStaf() {
     fetchProfile()
   }, [user])
 
-  if (!user || user.role === 'admin') return <div className="text-center py-12 text-secondary">Halaman ini hanya untuk staff.</div>
+  if (!user || user.roleName === 'LEADER') return <div className="text-center py-12 text-secondary">Halaman ini hanya untuk staff.</div>
   if (loading) return <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-accent-indigo border-t-transparent rounded-full animate-spin" /></div>
 
   return (

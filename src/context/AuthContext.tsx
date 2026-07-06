@@ -1,65 +1,110 @@
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
+import { PermissionKey } from '../lib/permissions'
 
 interface AuthUser {
   id: string
   name: string
-  role: 'staff' | 'admin'
+  roleId: string
+  roleName: string
   staffId?: string
 }
 
 interface AuthContextType {
   user: AuthUser | null
-  login: (name: string, password: string) => Promise<boolean>
-  adminLogin: (password: string) => Promise<boolean>
+  permissions: PermissionKey[]
+  login: (name: string, password: string) => Promise<{ success: boolean; error?: string }>
+  adminLogin: (password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   isAdmin: boolean
+  canAccess: (permission: PermissionKey) => boolean
+  refreshPermissions: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+async function fetchPermissions(roleId: string): Promise<PermissionKey[]> {
+  const { data: perms } = await supabase
+    .from('role_permissions')
+    .select('permission_key')
+    .eq('role_id', roleId)
+  return (perms?.map((p: any) => p.permission_key as PermissionKey)) || []
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => {
     const stored = sessionStorage.getItem('nanastoto_user')
     return stored ? JSON.parse(stored) : null
   })
+  const [permissions, setPermissions] = useState<PermissionKey[]>(() => {
+    const stored = sessionStorage.getItem('nanastoto_permissions')
+    return stored ? JSON.parse(stored) : []
+  })
 
-  const login = async (name: string, password: string): Promise<boolean> => {
-    if (password !== '123456') return false
-    const { data } = await supabase
+  const refreshPermissions = async () => {
+    if (!user) { setPermissions([]); return }
+    const perms = await fetchPermissions(user.roleId)
+    setPermissions(perms)
+    sessionStorage.setItem('nanastoto_permissions', JSON.stringify(perms))
+  }
+
+  useEffect(() => {
+    if (user) refreshPermissions()
+  }, [user?.roleId])
+
+  const login = async (name: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    if (password !== '123456') return { success: false, error: 'Password salah!' }
+    const { data, error } = await supabase
       .from('staff')
-      .select('id, name')
+      .select('id, name, role_id, roles!inner(name)')
       .ilike('name', name.trim())
       .eq('active', true)
       .single()
-    if (!data) return false
-    const authUser: AuthUser = { id: data.id, name: data.name, role: 'staff', staffId: data.id }
+    if (!data || error) return { success: false, error: 'Nama tidak terdaftar!' }
+    const roleData = data as any
+    const authUser: AuthUser = {
+      id: data.id,
+      name: data.name,
+      roleId: data.role_id,
+      roleName: roleData.roles?.name || 'Unknown',
+      staffId: data.id,
+    }
     setUser(authUser)
     sessionStorage.setItem('nanastoto_user', JSON.stringify(authUser))
-    return true
+    const perms = await fetchPermissions(data.role_id)
+    setPermissions(perms)
+    sessionStorage.setItem('nanastoto_permissions', JSON.stringify(perms))
+    return { success: true }
   }
 
-  const adminLogin = async (password: string): Promise<boolean> => {
+  const adminLogin = async (password: string): Promise<{ success: boolean; error?: string }> => {
     const { data } = await supabase
       .from('system_config')
       .select('value')
       .eq('key', 'admin_password')
       .single()
     const adminPass = data?.value || 'nasdes'
-    if (password !== adminPass) return false
-    const authUser: AuthUser = { id: 'admin', name: 'Admin', role: 'admin' }
-    setUser(authUser)
-    sessionStorage.setItem('nanastoto_user', JSON.stringify(authUser))
-    return true
+    if (password !== adminPass) return { success: false, error: 'Password salah!' }
+    setUser(null)
+    setPermissions([])
+    sessionStorage.removeItem('nanastoto_user')
+    sessionStorage.removeItem('nanastoto_permissions')
+    return { success: true }
   }
 
   const logout = () => {
     setUser(null)
+    setPermissions([])
     sessionStorage.removeItem('nanastoto_user')
+    sessionStorage.removeItem('nanastoto_permissions')
+  }
+
+  const canAccess = (permission: PermissionKey) => {
+    return permissions.includes(permission)
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, adminLogin, logout, isAdmin: user?.role === 'admin' }}>
+    <AuthContext.Provider value={{ user, permissions, login, adminLogin, logout, isAdmin: user?.roleName === 'LEADER', canAccess, refreshPermissions }}>
       {children}
     </AuthContext.Provider>
   )

@@ -4,7 +4,6 @@ export interface Role {
   max_concurrent: number
   quota_break_long_per_day: number
   quota_break_short_per_day: number
-  quota_toilet_per_day: number
   created_at: string
   updated_at: string
 }
@@ -45,11 +44,11 @@ export interface AttendanceRecord {
 export interface BreakRecord {
   id: string
   staff_id: string
-  break_type: 'toilet' | 'smoking' | 'meal'
+  break_type: 'keluar' | 'meal'
   start_time: string
-  deadline: string
+  deadline: string | null
   return_time: string | null
-  duration_minutes: number
+  duration_minutes: number | null
   date: string
   status: 'ACTIVE' | 'ON_TIME' | 'LATE' | 'FORCE_STOPPED' | 'AUTO_CLOSED'
   overtime_seconds: number
@@ -68,7 +67,6 @@ export interface DailyUsage {
   date: string
   break_long_count: number
   break_short_count: number
-  toilet_count: number
   staff?: Staff
 }
 
@@ -99,7 +97,24 @@ export interface ChatMessage {
   sender_name: string
   message: string
   encrypted: boolean
+  file_url?: string | null
+  file_type?: string | null
+  group_id?: string | null
   created_at: string
+}
+
+export interface ChatGroup {
+  id: string
+  name: string
+  created_by: string
+  created_at: string
+}
+
+export interface ChatGroupMember {
+  id: string
+  group_id: string
+  staff_id: string
+  joined_at: string
 }
 
 export interface ShiftHandover {
@@ -130,5 +145,19 @@ export interface SystemAlert {
   severity: 'low' | 'medium' | 'high' | 'critical'
   read: boolean
   telegram_sent: boolean
+  created_at: string
+}
+
+export interface RolePermission {
+  id: string
+  role_id: string
+  permission_key: string
+  created_at: string
+}
+
+export interface StaffPermission {
+  id: string
+  staff_id: string
+  permission_key: string
   created_at: string
 }

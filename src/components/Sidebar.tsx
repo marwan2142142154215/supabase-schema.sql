@@ -3,42 +3,56 @@ import {
   Home, Camera, LogOut, Monitor, History,
   FileText, User, BookOpen, BarChart3, LayoutDashboard, Bell,
   Users, Coffee, Repeat, Activity, AlertTriangle, Gauge,
-  Shield
+  Shield, MessageSquare
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import type { PermissionKey } from '../lib/permissions'
 
-const menuItems = [
+interface MenuItem {
+  path: string
+  label: string
+  icon: any
+  requiredPermission?: PermissionKey
+}
+
+const allMenuItems: MenuItem[] = [
   { path: '/', label: 'Beranda', icon: Home },
   { path: '/absensi', label: 'Absensi', icon: Camera },
-  { path: '/izin', label: 'Izin Keluar', icon: LogOut },
-  { path: '/monitor', label: 'Monitor', icon: Monitor },
-  { path: '/riwayat', label: 'Riwayat', icon: History },
-  { path: '/laporan-bulanan', label: 'Laporan Bulanan', icon: FileText },
+  { path: '/izin', label: 'Izin', icon: LogOut },
+  { path: '/monitor', label: 'Monitor', icon: Monitor, requiredPermission: 'view_monitor' },
+  { path: '/riwayat', label: 'Riwayat', icon: History, requiredPermission: 'view_all_history' },
+  { path: '/laporan-bulanan', label: 'Laporan Bulanan', icon: FileText, requiredPermission: 'view_reports' },
   { path: '/profil-staf', label: 'Profil Staf', icon: User },
-  { path: '/manajemen-peraturan', label: 'Peraturan', icon: BookOpen },
-  { path: '/analitik-kehadiran', label: 'Analitik', icon: BarChart3 },
-  { path: '/shift-summary', label: 'Shift Summary', icon: LayoutDashboard },
-  { path: '/system-alerts', label: 'System Alerts', icon: Bell },
-  { path: '/staff-directory', label: 'Staff Directory', icon: Users },
-  { path: '/break-analytics', label: 'Break Analytics', icon: Coffee },
-  { path: '/shift-handover', label: 'Shift Handover', icon: Repeat },
-  { path: '/performance-dashboard', label: 'Performance', icon: Activity },
-  { path: '/emergency-logs', label: 'Emergency Logs', icon: AlertTriangle },
-  { path: '/quota-overview', label: 'Quota Overview', icon: Gauge },
-  { path: '/master-panel', label: 'Master Panel', icon: Shield },
+  { path: '/manajemen-peraturan', label: 'Peraturan', icon: BookOpen, requiredPermission: 'manage_regulations' },
+  { path: '/analitik-kehadiran', label: 'Analitik', icon: BarChart3, requiredPermission: 'view_analytics' },
+  { path: '/shift-summary', label: 'Shift Summary', icon: LayoutDashboard, requiredPermission: 'view_shift_summary' },
+  { path: '/system-alerts', label: 'System Alerts', icon: Bell, requiredPermission: 'view_system_alerts' },
+  { path: '/staff-directory', label: 'Staff Directory', icon: Users, requiredPermission: 'view_staff_directory' },
+  { path: '/break-analytics', label: 'Break Analytics', icon: Coffee, requiredPermission: 'view_break_analytics' },
+  { path: '/shift-handover', label: 'Shift Handover', icon: Repeat, requiredPermission: 'view_shift_handover' },
+  { path: '/performance-dashboard', label: 'Performance', icon: Activity, requiredPermission: 'view_performance_dashboard' },
+  { path: '/emergency-logs', label: 'Emergency Logs', icon: AlertTriangle, requiredPermission: 'view_emergency_logs' },
+  { path: '/quota-overview', label: 'Quota Overview', icon: Gauge, requiredPermission: 'view_quota_overview' },
+  { path: '/master-panel', label: 'Master Panel', icon: Shield, requiredPermission: 'access_master_panel' },
+  { path: '/chat-nanastoto', label: 'Chat', icon: MessageSquare, requiredPermission: 'access_chat' },
 ]
 
 export default function Sidebar() {
-  const { user } = useAuth()
+  const { user, canAccess } = useAuth()
+  const menuItems = allMenuItems.filter(item => {
+    if (!item.requiredPermission) return true
+    return canAccess(item.requiredPermission)
+  })
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-secondary border-r border-custom hidden lg:flex flex-col z-50">
       <div className="p-6 border-b border-custom">
         <h1 className="text-2xl font-bold text-accent-indigo">NANASTOTO</h1>
         {user && (
-          <p className="text-sm text-secondary mt-1">
-            {user.role === 'admin' ? 'Administrator' : user.name}
-          </p>
+          <div className="mt-1">
+            <p className="text-sm text-white">{user.name}</p>
+            <p className="text-xs text-secondary">{user.roleName}</p>
+          </div>
         )}
       </div>
       <nav className="flex-1 overflow-y-auto p-4 space-y-1">

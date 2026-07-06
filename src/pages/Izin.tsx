@@ -6,12 +6,6 @@ import toast from 'react-hot-toast'
 import { formatTime, formatTimeShort } from '../utils/helpers'
 import CameraModal from '../components/CameraModal'
 
-const breakTypes = [
-  { value: 'toilet', label: 'Toilet', icon: Clock },
-  { value: 'smoking', label: 'Merokok', icon: Clock },
-  { value: 'meal', label: 'Makan', icon: Clock },
-]
-
 export default function Izin() {
   const [staffList, setStaffList] = useState<any[]>([])
   const [roles, setRoles] = useState<any[]>([])
@@ -44,6 +38,13 @@ export default function Izin() {
 
   useEffect(() => { fetchData(); const sub = supabase.channel('izin').on('postgres_changes', { event: '*', schema: 'public', table: 'break_records' }, fetchData).subscribe(); return () => { supabase.removeChannel(sub) } }, [fetchData])
 
+  const breakDurations = config.break_durations || { keluar: 15, meal: 8 }
+
+  const breakTypes = [
+    { value: 'keluar', label: `Izin Keluar (${breakDurations.keluar || 15} menit)`, icon: Clock },
+    { value: 'meal', label: `Makan (${breakDurations.meal || 8} menit)`, icon: Clock },
+  ]
+
   const handleStaffSelect = (name: string) => {
     setSelectedStaff(name)
     const staff = staffList.find(s => s.name.toLowerCase() === name.toLowerCase())
@@ -55,7 +56,6 @@ export default function Izin() {
     if (!selectedStaff || !selectedType) { toast.error('Pilih staff dan jenis izin!'); return }
     setLoading(true)
     try {
-      const breakDurations = config.break_durations || { toilet: 15, smoking: 15, meal: 8 }
       const tolerance = config.late_tolerance_seconds || 59
       const duration = breakDurations[selectedType] || 15
 
@@ -73,15 +73,11 @@ export default function Izin() {
 
       const today = format(new Date(), 'yyyy-MM-dd')
       const { data: usage } = await supabase.from('daily_usage').select('*').eq('staff_id', staffId).eq('date', today).single()
-      const isLongBreak = selectedType === 'toilet' || selectedType === 'smoking'
-      const quotaKey = isLongBreak ? 'quota_break_long_per_day' : 'quota_break_short_per_day'
-      const countKey = isLongBreak ? 'break_long_count' : 'break_short_count'
+      const quotaKey = selectedType === 'keluar' ? 'quota_break_long_per_day' : 'quota_break_short_per_day'
+      const countKey = selectedType === 'keluar' ? 'break_long_count' : 'break_short_count'
       const quota = role?.[quotaKey] ?? 4
       const used = usage?.[countKey] ?? 0
-      if (selectedType === 'toilet' && role?.quota_toilet_per_day !== -1) {
-        if ((usage?.toilet_count || 0) >= role.quota_toilet_per_day) { toast.error('Jatah toilet hari ini habis!'); setLoading(false); return }
-      }
-      if (used >= quota && selectedType !== 'toilet') { toast.error(`Jatah ${selectedType === 'smoking' ? 'merokok' : 'makan'} hari ini habis!`); setLoading(false); return }
+      if (used >= quota) { toast.error(`Jatah ${selectedType === 'keluar' ? 'izin keluar' : 'makan'} hari ini habis!`); setLoading(false); return }
 
       let lat: number | null = null, lng: number | null = null
       try {
@@ -101,17 +97,22 @@ export default function Izin() {
       }
 
       const startTime = new Date()
-      const deadline = new Date(startTime.getTime() + (duration * 60 * 1000) + (tolerance * 1000))
+      const deadline = new Date(startTime.getTime() + (duration * 60 * 1000) + (tolerance * 1000)).toISOString()
 
       await supabase.from('break_records').insert({
-        staff_id: staffId, break_type: selectedType, start_time: startTime.toISOString(),
-        deadline: deadline.toISOString(), duration_minutes: duration, date: today,
-        status: 'ACTIVE', photo_start_url: uploadedPhotoUrl,
+        staff_id: staffId,
+        break_type: selectedType,
+        start_time: startTime.toISOString(),
+        deadline: deadline,
+        duration_minutes: duration,
+        date: today,
+        status: 'ACTIVE',
+        photo_start_url: uploadedPhotoUrl,
         latitude_start: lat, longitude_start: lng,
       })
 
       await supabase.from('daily_usage').upsert(
-        { staff_id: staffId, date: today, [countKey]: used + 1, toilet_count: (usage?.toilet_count || 0) + (selectedType === 'toilet' ? 1 : 0) },
+        { staff_id: staffId, date: today, [countKey]: used + 1 },
         { onConflict: 'staff_id, date' }
       )
 
@@ -126,9 +127,13 @@ export default function Izin() {
     setLoading(true)
     try {
       const returnTime = new Date()
-      const deadline = new Date(breakRecord.deadline)
-      const isLate = returnTime > deadline
-      const overtimeSeconds = isLate ? Math.floor((returnTime.getTime() - deadline.getTime()) / 1000) : 0
+      let isLate = false
+      let overtimeSeconds = 0
+      if (breakRecord.deadline) {
+        const deadline = new Date(breakRecord.deadline)
+        isLate = returnTime > deadline
+        overtimeSeconds = isLate ? Math.floor((returnTime.getTime() - deadline.getTime()) / 1000) : 0
+      }
 
       await supabase.from('break_records').update({
         return_time: returnTime.toISOString(),
@@ -157,7 +162,7 @@ export default function Izin() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Izin Keluar</h1>
+      <h1 className="text-2xl font-bold">Izin</h1>
 
       <div className="bg-card rounded-2xl p-6 border border-custom">
         <h2 className="text-lg font-bold mb-4">Izin Baru</h2>
@@ -179,11 +184,11 @@ export default function Izin() {
           </div>
           <div>
             <label className="text-sm text-secondary block mb-1">Jenis Izin</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {breakTypes.map(t => (
                 <button key={t.value} onClick={() => setSelectedType(t.value)}
-                  className={`p-3 rounded-xl border text-sm transition-all ${selectedType === t.value ? 'bg-accent-indigo/20 border-accent-indigo text-accent-indigo' : 'bg-secondary border-custom text-secondary hover:text-white'}`}>
-                  <t.icon size={18} className="mx-auto mb-1" />{t.label}
+                  className={`p-4 rounded-xl border text-sm font-medium transition-all ${selectedType === t.value ? 'bg-accent-indigo/20 border-accent-indigo text-accent-indigo' : 'bg-secondary border-custom text-secondary hover:text-white'}`}>
+                  <t.icon size={22} className="mx-auto mb-2" />{t.label}
                 </button>
               ))}
             </div>
@@ -199,17 +204,16 @@ export default function Izin() {
       <div className="space-y-3">
         <h2 className="text-lg font-bold">Izin Aktif ({activeBreaks.length})</h2>
         {activeBreaks.map(b => {
-          const deadline = new Date(b.deadline).getTime()
-          const now = Date.now()
-          const remaining = deadline - now
-          const expired = remaining <= 0
-          const urgent = remaining > 0 && remaining < 120000
+          const hasDeadline = !!b.deadline
+          const remaining = hasDeadline ? new Date(b.deadline).getTime() - Date.now() : Infinity
+          const expired = hasDeadline && remaining <= 0
+          const urgent = hasDeadline && remaining > 0 && remaining < 120000
           return (
             <div key={b.id} className={`rounded-2xl p-5 border transition-all ${expired ? 'bg-accent-red/10 border-accent-red/30' : urgent ? 'bg-accent-orange/10 border-accent-orange/30' : 'bg-card border-custom'}`}>
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-bold text-lg">{b.staff?.name}</p>
-                  <p className="text-sm text-secondary">{b.staff?.roles?.name} • {b.break_type.toUpperCase()}</p>
+                  <p className="text-sm text-secondary">{b.staff?.roles?.name} • {b.break_type === 'keluar' ? 'IZIN KELUAR' : 'MAKAN'}</p>
                   <p className="text-xs text-secondary mt-1">{formatTime(b.start_time)} - {formatTimeShort(b.deadline)}</p>
                 </div>
                 <div className="text-right">
