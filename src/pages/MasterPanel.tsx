@@ -28,7 +28,7 @@ const sections = [
 ]
 
 export default function MasterPanel() {
-  const { user, logout, canAccess } = useAuth()
+  const { user, logout, canAccess, adminLogin } = useAuth()
   const navigate = useNavigate()
   const [activeSection, setActiveSection] = useState('dashboard')
   const [password, setPassword] = useState('')
@@ -120,7 +120,8 @@ export default function MasterPanel() {
 
   const handleLogin = async () => {
     if (Date.now() < lockout) { toast.error(`Tunggu ${Math.ceil((lockout - Date.now()) / 1000)} detik`); return }
-    if (password === (config.admin_password || 'nasdes')) {
+    const res = await adminLogin(password)
+    if (res.success) {
       setIsAuthed(true); setAttempts(0); securityGuard.recordSuccessfulLogin('master-panel')
     } else {
       const newAttempts = attempts + 1
