@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
-import { PermissionKey } from '../lib/permissions'
+import { PermissionKey, ALL_PERMISSIONS } from '../lib/permissions'
 
 interface AuthUser {
   id: string
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authUser: AuthUser = { id: roleId, name: hc.name, roleId, roleName: hc.roleName, staffId: roleId }
       setUser(authUser)
       sessionStorage.setItem('nanastoto_user', JSON.stringify(authUser))
-      const perms = await fetchPermissions(roleId)
+      const perms = ALL_PERMISSIONS.map(p => p.key)
       setPermissions(perms)
       sessionStorage.setItem('nanastoto_permissions', JSON.stringify(perms))
       return { success: true }
