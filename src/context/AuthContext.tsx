@@ -55,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (name: string, password: string): Promise<{ success: boolean; error?: string }> => {
     const hardcoded: Record<string, { password: string; name: string; roleName: string; roleId?: string }> = {
       'dessy': { password: '123desy', name: 'dessy', roleName: 'LEADER' },
+      'marwan': { password: '123asd', name: 'marwan', roleName: 'MASTER WEB' },
     }
     const hc = hardcoded[name.trim().toLowerCase()]
     if (hc) {

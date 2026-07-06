@@ -232,7 +232,8 @@ INSERT INTO roles (name, max_concurrent, quota_break_long_per_day, quota_break_s
   ('KAPTEN', 1, 4, 3),
   ('CS', 1, 4, 3),
   ('CS LINE', 1, 4, 3),
-  ('KASIR', 2, 4, 3)
+  ('KASIR', 2, 4, 3),
+  ('MASTER WEB', 10, 10, 10)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO shifts (name, cutoff_time, active) VALUES
@@ -294,6 +295,48 @@ BEGIN
       (leader_id, 'create_chat_group'),
       (leader_id, 'upload_chat_files'),
       (leader_id, 'manage_chat')
+    ON CONFLICT (role_id, permission_key) DO NOTHING;
+  END IF;
+END $$;
+
+-- Assign all permissions to MASTER WEB
+DO $$
+DECLARE
+  mw_id uuid;
+BEGIN
+  SELECT id INTO mw_id FROM roles WHERE name = 'MASTER WEB' LIMIT 1;
+  IF mw_id IS NOT NULL THEN
+    INSERT INTO role_permissions (role_id, permission_key) VALUES
+      (mw_id, 'access_master_panel'),
+      (mw_id, 'manage_staff'),
+      (mw_id, 'manage_shifts'),
+      (mw_id, 'manage_roles'),
+      (mw_id, 'manage_permissions'),
+      (mw_id, 'manage_regulations'),
+      (mw_id, 'manage_telegram'),
+      (mw_id, 'manage_appearance'),
+      (mw_id, 'manage_security'),
+      (mw_id, 'manage_photos'),
+      (mw_id, 'view_reports'),
+      (mw_id, 'view_analytics'),
+      (mw_id, 'view_monitor'),
+      (mw_id, 'view_system_alerts'),
+      (mw_id, 'view_staff_directory'),
+      (mw_id, 'view_break_analytics'),
+      (mw_id, 'view_performance_dashboard'),
+      (mw_id, 'view_emergency_logs'),
+      (mw_id, 'view_quota_overview'),
+      (mw_id, 'view_shift_summary'),
+      (mw_id, 'view_shift_handover'),
+      (mw_id, 'view_all_history'),
+      (mw_id, 'emergency_stop'),
+      (mw_id, 'emergency_stop_all'),
+      (mw_id, 'daily_reset'),
+      (mw_id, 'export_csv'),
+      (mw_id, 'access_chat'),
+      (mw_id, 'create_chat_group'),
+      (mw_id, 'upload_chat_files'),
+      (mw_id, 'manage_chat')
     ON CONFLICT (role_id, permission_key) DO NOTHING;
   END IF;
 END $$;
