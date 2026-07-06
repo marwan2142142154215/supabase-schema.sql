@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS roles (
 CREATE TABLE IF NOT EXISTS staff (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
+  password text,
   role_id uuid REFERENCES roles(id),
   active boolean DEFAULT true,
   created_at timestamptz DEFAULT now(),

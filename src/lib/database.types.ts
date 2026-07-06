@@ -11,6 +11,7 @@ export interface Role {
 export interface Staff {
   id: string
   name: string
+  password?: string
   role_id: string
   active: boolean
   created_at: string

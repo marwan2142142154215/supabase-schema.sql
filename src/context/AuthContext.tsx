@@ -53,15 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user?.roleId])
 
   const login = async (name: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    if (password !== '123456') return { success: false, error: 'Password salah!' }
     const { data, error } = await supabase
       .from('staff')
-      .select('id, name, role_id, roles!inner(name)')
+      .select('id, name, password, role_id, roles!inner(name)')
       .ilike('name', name.trim())
       .eq('active', true)
       .single()
     if (!data || error) return { success: false, error: 'Nama tidak terdaftar!' }
-    const roleData = data as any
+    const staffData = data as any
+    if (staffData.password && password !== staffData.password) return { success: false, error: 'Password salah!' }
+    if (!staffData.password && password !== '123456') return { success: false, error: 'Password salah!' }
+    const roleData = staffData as any
     const authUser: AuthUser = {
       id: data.id,
       name: data.name,
